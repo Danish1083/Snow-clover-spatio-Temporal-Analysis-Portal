@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Button Selection Highlight</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.css" rel="stylesheet">
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
+
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        #title {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(95, 94, 94, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            z-index: 1;
+            color: white;
+            font-size: 24px;
+            text-align: center;
+        }
+
+        #controls {
+            visibility: none;
+            color: white;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0.75;
+            /* Adjusted color for a darker shade with transparency */
+            border-radius: 0px;
+            /* Subtle shadow effect */
+            height: 100vh;
+            max-height: 100vh;
+            overflow-y: auto;
+            /* Scroll only when needed */
+        }
+
+        .control-label {
+            margin-bottom: 10px;
+            display: block;
+            font-weight: bold;
+            color: #fff;
+            /* White text color */
+        }
+
+        .collapsible-item {
+            margin-bottom: 10px;
+            /* Adjust as needed */
+        }
+
+        .btn-primary {
+            background-color: rgba(0, 123, 255, 0.7);
+            /* Adjust transparency here (0.8 is 80% opaque) */
+            color: #fff;
+            /* Text color */
+            border: none;
+            /* Remove default button border */
+            transition: background-color 0.3s ease;
+            /* Smooth transition for background color change */
+            padding: 2.5px;
+            /* Padding */
+            border-radius: 13px;
+            /* Rounded corners */
+            cursor: pointer;
+            /* Cursor style */
+        }
+
+
+        .btn-primary:hover {
+            background-color: rgba(0, 123, 255, 1);
+            /* Fully opaque blue on hover */
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            /* Slightly stronger shadow on hover */
+        }
+
+        .btn-danger {
+            /* Red with 70% opacity */
+            color: #fff;
+            /* Text color */
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            /* White border with 80% opacity */
+            transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            /* Smooth transitions */
+            padding: 4px;
+            /* Increased padding */
+
+            border-radius: 13px;
+            /* Rounded corners */
+            cursor: pointer;
+            /* Cursor style */
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            background: linear-gradient(to left, #3b7e86, #0d131a);
+            /* Subtle shadow effect */
+        }
+
+        .btn-danger:hover {
+            border-color: rgb(4, 1, 84);
+            background: rgb(0, 210, 199);
+            z-index: 1004;
+            /* Fully opaque red on hover */
+            box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.3);
+            /* Slightly stronger shadow on hover */
+        }
+
+        .ll {
+            width: 130px;
+            background: linear-gradient(to left, #3b7e86, #0d131a);
+            color: #fff;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            padding: 4px;
+            border-radius: 13px;
+            cursor: pointer;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        #earth {
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            bottom: -200px;
+            left: 800px;
+            margin: 200px;
+            z-index: 1000;
+            transform: rotate(90deg);
+            animation: move-earth 10s infinite;
+        }
+
+        #earth:before {
+            content: "";
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            width: 2000px;
+            height: 2000px;
+            border-radius: 50%;
+            z-index: 1000;
+
+        }
+
+        .ll:hover {
+            border-color: rgb(4, 1, 84);
+            background: rgb(0, 210, 199);
+            /* Fully opaque red on hover */
+            box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.3);
+
+        }
+
+        .menu-toggle {
+            position: absolute;
+            z-index: 1001;
+            cursor: pointer;
+            background: rgba(13, 46, 84, 0.6);
+            padding: 3px;
+            padding-bottom: 6.5px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+        }
+
+        .rotating-img {
+            animation: rotate 10s linear infinite;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+
+
+    <div class="menu-toggle" id="menuToggle" style="background-color:transparent;">
+        <img src="data/earthsnow.png" alt="Menu Icon" style="width: 75px; height: 75px;" class="rotating-img">
+    </div>
+
+
+
+    <div id="controls" class="d-none"
+        style="width: 200px; left:0;    background: linear-gradient(to left, #3b7e86, #0d131a);  opacity: 0.75;">
+        <div class="container left-aligned-container" style="margin-top: 50px;">
+            <div class="collapsible-item">
+
+                <button class="btn btn-block ll" type="button" id="toggle-animation"
+                    style=" font-weight: bold; width: 160px; margin-top: 100px;margin-bottom: 10px;  border-radius: 13px;">
+                    Pause Animation
+                </button>
+
+
+
+                <button class="btn btn-danger btn-block" type="button" data-toggle="collapse" data-target="#collapse1"
+                    aria-expanded="false" aria-controls="collapse1"
+                    style="width: 160px;font-weight: bold;font-family: serif;  ">
+                    Snow cover
+                </button>
+
+                <div class="collapse" id="collapse1">
+                    <div class="card card-body" style="  background-color: rgba(1, 25, 78, 0.4);width: 155px;">
+                        <button class="btn btn-primary btn-block" id="toggle-march" type="button">March</button>
+                        <button class="btn btn-primary btn-block" id="toggle-april" type="button">April</button>
+                        <button class="btn btn-primary btn-block" id="toggle-may" type="button">May</button>
+                        <button class="btn btn-primary btn-block" id="toggle-june" type="button">June</button>
+                        <button class="btn btn-primary btn-block" id="toggle-july" type="button">July</button>
+                        <button class="btn btn-primary btn-block" id="toggle-aug" type="button">August</button>
+
+                        <button class="btn btn-primary btn-block" id="toggle-sep" type="button">September</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="collapsible-item">
+                <button class="btn btn-danger btn-block" type="button" data-toggle="collapse" data-target="#collapse2"
+                    aria-expanded="false" aria-controls="collapse2"
+                    style="width: 160px;font-weight: bold;font-family: serif;">
+                    NASA GIBS
+                </button>
+                <div class="collapse" id="collapse2">
+                    <div class="card card-body" style="  background-color: rgba(1, 25, 78, 0.4);  width: 155px; ">
+                        <button class="btn btn-primary btn-block" id="temperature"
+                            onclick="lyr('AIRS_L3_Surface_Air_Temperature_Daily_Day')" type="button">Surface Air
+                            Temperature</button>
+                        <button class="btn btn-primary btn-block" id="snow_cover"
+                            onclick="lyr('MODIS_Aqua_L3_NDSI_Snow_Cover_Daily')" type="button">Snow cover</button>
+                        <button class="btn btn-primary btn-block" id="snow_depth"
+                            onclick="lyr('MERRA2_Snow_Depth_Over_Glaciated_Surface_Monthly')" type="button">Snow
+                            depth</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="collapsible-item">
+                <button class="btn btn-danger btn-block" type="button" data-toggle="collapse" data-target="#collapse3"
+                    aria-expanded="false" aria-controls="collapse3"
+                    style="width: 160px;font-weight: bold;font-family: serif;">
+                    Temperature Projections
+                </button>
+                <div class="collapse" id="collapse3">
+                    <div class="card card-body" style="  background-color: rgba(1, 25, 78, 0.4);  width: 155px; ">
+
+                        <button type="button" class="btn btn-primary btn-block" id="HIApr1_24-btn"
+                            onclick="lyr('HIApr1_24')">April</button>
+                        <button type="button" class="btn btn-primary btn-block" id="HIMay1_24-btn"
+                            onclick="lyr('HIMay1_24')">May</button>
+                        <button type="button" class="btn btn-primary btn-block" id="HIJun1_24-btn"
+                            onclick="lyr('HIJun1_24')">June</button>
+                        <button type="button" class="btn btn-primary btn-block" id="HIJul1_24-btn"
+                            onclick="lyr('HIJul1_24')">July</button>
+                        <button type="button" class="btn btn-primary btn-block" id="HIAug1_24-btn"
+                            onclick="lyr('HIAug1_24')">August</button>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="collapsible-item">
+                <button class="btn btn-danger btn-block" type="button" data-toggle="collapse" data-target="#collapse4"
+                    aria-expanded="false" aria-controls="collapse4"
+                    style="width: 160px;font-weight: bold;font-family: serif;">
+                    Heat Index Projections
+                </button>
+                <div class="collapse" id="collapse4">
+                    <div class="card card-body" style="  background-color: rgba(1, 25, 78, 0.4);  width: 155px; ">
+                        <button type="button" class="btn btn-primary btn-block"
+                            onclick="lyr('Marchtemp')">March</button>
+                        <button type="button" class="btn btn-primary  btn-block"
+                            onclick="lyr('Apriltemp')">April</button>
+                        <button type="button" class="btn btn-primary btn-block" onclick="lyr('Maytemp')">May</button>
+                        <button type="button" class="btn btn-primary btn-block" onclick="lyr('Junetemp')">June</button>
+                        <button type="button" class="btn btn-primary btn-block" onclick="lyr('Julytemp')">July</button>
+                        <button type="button" class="btn btn-primary btn-block" onclick="lyr('Augtemp')">Aug</button>
+
+
+                    </div>
+                </div>
+            </div>
+
+
+
+        </div>
+
+    </div>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiYWxpaGFtemEtMTQiLCJhIjoiY2x4dHkzdHJ6MWhzOTJrcXdqcnFsYnU4dyJ9.LbRvUbNnNk2rUq13y-8gFQ';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            zoom: 5,
+            center: [73.5, 36.5],  // Center on northern Pakistan
+            pitch: 0,
+            bearing: 0,
+            style: 'mapbox://styles/mapbox/basic-v9',
+            interactive: true
+        });
+
+        map.on('style.load', () => {
+            map.addSource('mapbox-dem', {
+                'type': 'raster-dem',
+                'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                'tileSize': 512,
+                'maxzoom': 9
+            });
+            map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 0 });
+
+            const months = ['March', 'April', 'May', 'June', 'July', 'Aug', 'Sep'];
+            months.forEach(month => {
+                map.addSource(`${month.toLowerCase()}-snow`, {
+                    type: 'raster',
+                    tiles: [
+                        `http://172.18.1.187:8080/geoserver/snowcoverDynamics/wms?service=WMS&version=1.1.0&request=GetMap&layers=snowcoverDynamics:${month}&bbox={bbox-epsg-3857}&width=768&height=453&srs=EPSG:3857&styles=&format=image/png&transparent=true`
+                    ],
+                    tileSize: 256
+                });
+
+                map.addLayer({
+                    id: `${month.toLowerCase()}-snow-layer`,
+                    type: 'raster',
+                    source: `${month.toLowerCase()}-snow`,
+                    paint: {
+                        'raster-opacity': 0.5,
+                        'raster-hue-rotate': 25
+                    }
+                });
+
+                map.setLayoutProperty(`${month.toLowerCase()}-snow-layer`, 'visibility', 'none');
+            });
+
+            const NASA = [
+                'MODIS_Aqua_L3_NDSI_Snow_Cover_Daily',
+                'AIRS_L3_Surface_Air_Temperature_Daily_Day',
+                'MERRA2_Snow_Depth_Over_Glaciated_Surface_Monthly'
+            ];
+
+            function encodeLayerName(layerName) {
+                return encodeURIComponent(layerName);
+            }
+
+            NASA.forEach(NAS => {
+                const sourceId = `${NAS}-snow`;
+                const layerId = `${NAS}-snow-layer`;
+                try {
+                    map.addSource(sourceId, {
+                        type: 'raster',
+                        tiles: [
+                            `https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&LAYERS=${encodeLayerName(NAS)}&VERSION=1.3.0&FORMAT=image/png&TRANSPARENT=true&WIDTH=256&HEIGHT=256&CRS=EPSG:3857&BBOX={bbox-epsg-3857}`
+                        ],
+                        tileSize: 256
+                    });
+                } catch (error) {
+                    console.error(`Failed to add source ${sourceId}:`, error);
+                }
+
+                try {
+                    map.addLayer({
+                        id: layerId,
+                        type: 'raster',
+                        source: sourceId,
+                        paint: {
+                            'raster-opacity': 0.5,
+                            'raster-hue-rotate': 25
+                        }
+                    });
+                } catch (error) {
+                    console.error(`Failed to add layer ${layerId}:`, error);
+                }
+
+                try {
+                    map.setLayoutProperty(layerId, 'visibility', 'none');
+                } catch (error) {
+                    console.error(`Failed to set visibility for layer ${layerId}:`, error);
+                }
+            });
+
+            const heat_temp = ['HIApr1_24', 'HIAug1_24', 'HIJul1_24', 'HIJun1_24', 'HIMay1_24', 'HISep1_24', 'Apriltemp', 'Augtemp', 'Julytemp', 'Junetemp', 'Marchtemp', 'Maytemp'];
+            heat_temp.forEach(i => {
+                map.addSource(`${i}-snow`, {
+                    type: 'raster',
+                    tiles: [
+                        `http://172.18.1.187:8080/geoserver/snowcoverDynamics/wms?service=WMS&version=1.1.0&request=GetMap&layers=snowcoverDynamics:${i}&bbox={bbox-epsg-3857}&width=256&height=256&srs=EPSG:3857&format=image/png`
+                    ],
+                    tileSize: 256
+                });
+
+                map.addLayer({
+                    id: `${i}-snow-layer`,
+                    type: 'raster',
+                    source: `${i}-snow`,
+                    paint: {
+                        'raster-opacity': 0.5,
+                        'raster-hue-rotate': 25
+                    }
+                });
+
+                map.setLayoutProperty(`${i}-snow-layer`, 'visibility', 'none');
+            });
+
+            months.forEach(month => {
+                document.getElementById(`toggle-${month.toLowerCase()}`).addEventListener('click', () => {
+                    const visibility = map.getLayoutProperty(`${month.toLowerCase()}-snow-layer`, 'visibility');
+                    if (visibility === 'visible') {
+                        map.setLayoutProperty(`${month.toLowerCase()}-snow-layer`, 'visibility', 'none');
+                    } else {
+                        map.setLayoutProperty(`${month.toLowerCase()}-snow-layer`, 'visibility', 'visible');
+                    }
+                });
+            });
+        });
+
+        function lyr(layerName) {
+            // Create the layer ID based on the provided layer name
+            const layerId = `${layerName}-snow-layer`;
+
+            // Check if the layer exists
+            if (map.getLayer(layerId)) {
+                // Get the current visibility property
+                const visibility = map.getLayoutProperty(layerId, 'visibility');
+
+                // Toggle visibility
+                map.setLayoutProperty(layerId, 'visibility', visibility === 'visible' ? 'none' : 'visible');
+            } else {
+                // Optionally handle the case where the layer does not exist
+                console.warn(`Layer ${layerId} not found.`);
+            }
+        }
+
+
+
+
+
+        // Function to toggle selection
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', () => {
+                button.classList.toggle('selected');
+            });
+        });
+
+
+
+        // below is collapsible things
+        $(document).ready(function () {
+            let fl = true; // Flag to track visibility state
+
+            // Toggle menu button functionality
+            $('#menuToggle').click(function () {
+                if (fl) {
+                    $('#controls').removeClass('d-none'); // Show the controls
+                    fl = false; // Update flag
+                } else {
+                    $('#controls').addClass('d-none'); // Hide the controls
+                    fl = true; // Update flag
+                }
+            });
+            $('.tp').click(function () {
+                if (fl) {
+                    $('.map-overlay').removeClass('d-none'); // Show the controls
+                    fl = false; // Update flag
+                } else {
+                    $('.map-overlay').addClass('d-none'); // Hide the controls
+                    fl = true; // Update flag
+                }
+            });
+
+
+            let btns = document.getElementsByClassName('btn-primary');
+
+            for (let i = 0; i < btns.length; i++) {
+                btns[i].addEventListener('click', function () {
+                    let btntgle = this.dataset.btntgle === 'true'; // Get the current toggle state from data attribute
+                    if (!btntgle) {
+                        this.style.backgroundColor = '#555555';
+                        this.dataset.btntgle = 'true'; // Update data attribute to true
+                    } else {
+                        this.style.backgroundColor = 'rgba(0, 123, 255, 0.7)';
+                        this.dataset.btntgle = 'false'; // Update data attribute to false
+                    }
+                });
+            }
+        });
+        map.addControl(new mapboxgl.NavigationControl());
+
+    </script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
